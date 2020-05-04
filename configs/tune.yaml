@@ -1,0 +1,8 @@
+optim_params:
+  lr:
+    type: range
+    bounds: [0.000001, 0.4]
+    log_scale: True
+  weight_decay:
+    type: range
+    bounds: [0.0, 1.0]
