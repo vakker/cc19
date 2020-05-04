@@ -26,7 +26,6 @@ def main(args):
             parameters.append({'name': param, **options})
             hparams[param_subset].append(param)
 
-            # tune.grid_search(sorted(values, reverse=True))
     exp_configs['hparams'] = hparams
 
     exp_configs['data_params']['subset'] = args.subset
@@ -44,7 +43,6 @@ def main(args):
                                         mode="max",
                                         grace_period=5,
                                         max_t=max(max_epochs, 5))
-    # algo = HyperOptSearch(space, max_concurrent=4, metric="scalar/val/loss", mode="min")
     client = AxClient(enforce_sequential_optimization=True)
     client.create_experiment(parameters=parameters, objective_name='val_accuracy')
     search_alg = AxSearch(client, max_concurrent=1, mode='max')
