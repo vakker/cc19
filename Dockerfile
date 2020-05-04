@@ -3,7 +3,6 @@ FROM nvidia/cuda:10.2-cudnn7-devel-ubuntu18.04
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
-RUN curl -sL https://deb.nodesource.com/setup_14.x | -E bash -
 RUN apt-get update && apt-get install -y --no-install-recommends \
   build-essential \
   cmake \
@@ -31,5 +30,3 @@ COPY environment.yml /root
 RUN conda env update --name base -f /root/environment.yml
 
 WORKDIR /
-# WORKDIR /root/zg-p1
-# COPY . .
