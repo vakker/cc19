@@ -35,6 +35,7 @@ dependencies:
   - mlflow
   - opencv
   - imbalanced-learn
+  - pydicom
   - pip:
       - tensorflow
       - tensorboardX
