@@ -6,6 +6,7 @@ from os import path as osp
 import numpy as np
 import torch
 import yaml
+from ray.util.sgd.utils import BATCH_SIZE
 
 from . import datasets, models
 
@@ -111,7 +112,7 @@ def model_creator(config):
 
 def data_creator(config):
     data_params = config['data_params']
-    batch_size = config.get("batch_size", 126)
+    batch_size = config[BATCH_SIZE]
     # TODO: check gpus flag
     return datasets.setup_datasets_np(**data_params, batch_size=batch_size, use_cuda=True)
 
