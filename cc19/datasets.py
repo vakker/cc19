@@ -18,31 +18,26 @@ from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 
-class NPDataset(Dataset):
-    def __init__(self, labels, data, transform=None, balance=True):
+class DatasetFolder(Dataset):
+    def __init__(self, labels, file_paths, transform=None, balance=True):
         self.labels = labels
-        self.data = data
+        self.file_paths = file_paths
         self.data_idx = np.arange(len(labels))
-
-        # self.print_stats()
 
         if balance:
             ros = RandomOverSampler(random_state=0)
             self.data_idx, self.labels = ros.fit_resample(self.data_idx.reshape(-1, 1),
                                                           self.labels)
             self.data_idx = self.data_idx.squeeze()
-            # self.print_stats()
 
         self.transform = transform
-
-        # import IPython; IPython.embed(colors="neutral")
 
     def __len__(self):
         return len(self.labels)
 
     def __getitem__(self, idx):
         if self.transform:
-            sample = self.transform(resize(self.data[self.data_idx[idx]], 224))
+            sample = self.transform(self.file_paths[self.data_idx[idx]])
         label = self.labels[idx]
 
         return sample, label
@@ -53,77 +48,91 @@ class NPDataset(Dataset):
         print(total, unique, 100 * counts / total)
 
 
-class CXRDataset(Dataset):
-    def __init__(self, metadata, data_dir, train, transform=None, subset=None):
-        md = pd.read_csv(metadata)
-        md_filtered = md[md['view'].isin(['PA', 'AP', 'AP Supine', 'AP semi erect'])]
+# class CXRDataset(Dataset):
+#     def __init__(self, metadata, data_dir, train, transform=None, subset=None):
+#         md = pd.read_csv(metadata)
+#         md_filtered = md[md['view'].isin(['PA', 'AP', 'AP Supine', 'AP semi erect'])]
 
-        md_filtered = md_filtered.sample(frac=1, random_state=0)
-        if train:
-            self.md_filtered = md_filtered.iloc[:int(0.8 * len(md_filtered))]
-        else:
-            self.md_filtered = md_filtered.iloc[int(0.8 * len(md_filtered)):]
+#         md_filtered = md_filtered.sample(frac=1, random_state=0)
+#         if train:
+#             self.md_filtered = md_filtered.iloc[:int(0.8 * len(md_filtered))]
+#         else:
+#             self.md_filtered = md_filtered.iloc[int(0.8 * len(md_filtered)):]
 
-        self.md_filtered = self.md_filtered.iloc[:30]
-        self.labels = (self.md_filtered['finding'] == "COVID-19").values.astype(int)
-        unique_elements, counts_elements = np.unique(self.labels, return_counts=True)
-        print(train, unique_elements, 100 * counts_elements / len(self.labels))
+#         self.md_filtered = self.md_filtered.iloc[:30]
+#         self.labels = (self.md_filtered['finding'] == "COVID-19").values.astype(int)
+#         unique_elements, counts_elements = np.unique(self.labels, return_counts=True)
+#         print(train, unique_elements, 100 * counts_elements / len(self.labels))
 
-        imgs = load_images(data_dir, self.md_filtered['filename'])
-        self.imgs = resize(imgs, size=512)
+#         imgs = load_images(data_dir, self.md_filtered['filename'])
+#         self.imgs = resize(imgs, size=512)
 
-        self.data_dir = data_dir
-        self.transform = transform
-        # import ipdb; ipdb.set_trace()
+#         self.data_dir = data_dir
+#         self.transform = transform
+#         # import ipdb; ipdb.set_trace()
 
-    def __len__(self):
-        return len(self.md_filtered)
+#     def __len__(self):
+#         return len(self.md_filtered)
 
-    def __getitem__(self, idx):
-        if self.transform:
-            sample = self.transform(self.imgs[idx])
-        label = self.labels[idx]
+#     def __getitem__(self, idx):
+#         if self.transform:
+#             sample = self.transform(self.imgs[idx])
+#         label = self.labels[idx]
 
-        return sample, label
+#         return sample, label
 
 
-def setup_datasets_np(md_file, data_file, batch_size=128, use_cuda=False, subset=None):
+def setup_data_loaders(md_file,
+                       data_dir,
+                       img_scale,
+                       batch_size=128,
+                       use_cuda=False,
+                       subset=None,
+                       workers=2):
     metadata = pd.read_csv(md_file)
-    # metadata = metadata.sample(frac=1, random_state=0)
-    labels = metadata['Target'].values.astype(int)
-    data = np.load(data_file)
     if subset:
-        subset_idx = int(subset * len(data))
-        data = data[:subset_idx]
-        labels = labels[:subset_idx]
+        subset_idx = int(subset * len(metadata))
+        metadata = metadata.iloc[:subset_idx]
+
+    labels = metadata['Target'].values.astype(int)
+    file_paths = [osp.join(data_dir, r + ".dcm") for r in metadata['patientId']]
 
     last_train_idx = int(0.8 * len(labels))
 
-    trans = transforms.ToTensor()
-    tng_ds = NPDataset(labels=labels[:last_train_idx], data=data[:last_train_idx], transform=trans)
-    val_ds = NPDataset(labels=labels[last_train_idx:], data=data[last_train_idx:], transform=trans)
+    trans = transforms.Compose([lambda path: load_image(path, 224), transforms.ToTensor()])
+    tng_ds = DatasetFolder(labels=labels[:last_train_idx],
+                           file_paths=file_paths[:last_train_idx],
+                           transform=trans)
+    val_ds = DatasetFolder(labels=labels[last_train_idx:],
+                           file_paths=file_paths[last_train_idx:],
+                           transform=trans)
 
-    tng_loader = torch.utils.data.DataLoader(dataset=tng_ds, batch_size=batch_size, shuffle=True)
-    val_loader = torch.utils.data.DataLoader(dataset=val_ds, batch_size=batch_size, shuffle=False)
+    tng_loader = torch.utils.data.DataLoader(dataset=tng_ds,
+                                             batch_size=batch_size,
+                                             shuffle=True,
+                                             num_workers=workers)
+    val_loader = torch.utils.data.DataLoader(dataset=val_ds,
+                                             batch_size=batch_size,
+                                             shuffle=False,
+                                             num_workers=workers)
     return tng_loader, val_loader
 
 
-def setup_data_loaders(metadata, data_dir, batch_size=128, use_cuda=False):
-    trans = transforms.ToTensor()
-    train_set = CXRDataset(metadata=metadata, data_dir=data_dir, train=True, transform=trans)
-    test_set = CXRDataset(metadata=metadata, data_dir=data_dir, train=False, transform=trans)
+# def setup_data_loaders(metadata, data_dir, batch_size=128, use_cuda=False):
+#     trans = transforms.ToTensor()
+#     train_set = CXRDataset(metadata=metadata, data_dir=data_dir, train=True, transform=trans)
+#     test_set = CXRDataset(metadata=metadata, data_dir=data_dir, train=False, transform=trans)
 
-    kwargs = {'num_workers': 0, 'pin_memory': use_cuda}
-    train_loader = torch.utils.data.DataLoader(dataset=train_set,
-                                               batch_size=batch_size,
-                                               shuffle=True,
-                                               **kwargs)
-    test_loader = torch.utils.data.DataLoader(dataset=test_set,
-                                              batch_size=batch_size,
-                                              shuffle=False,
-                                              **kwargs)
-    return train_loader, test_loader
-
+#     kwargs = {'num_workers': 0, 'pin_memory': use_cuda}
+#     train_loader = torch.utils.data.DataLoader(dataset=train_set,
+#                                                batch_size=batch_size,
+#                                                shuffle=True,
+#                                                **kwargs)
+#     test_loader = torch.utils.data.DataLoader(dataset=test_set,
+#                                               batch_size=batch_size,
+#                                               shuffle=False,
+#                                               **kwargs)
+#     return train_loader, test_loader
 
 # async def load_image(img_path, event_loop, executor):
 #     return await event_loop.run_in_executor(executor, cv2.imread, img_path,

@@ -5,7 +5,8 @@ model_params:
 dataset: 'DataFrameDS' # TODO
 data_params:
   md_file: '%p/../rsna-pneumonia/stage_2_train_labels.csv'
-  data_file: '%p/../rsna-pneumonia/rsna.npy'
+  data_dir: '%p/../rsna-pneumonia/stage_2_train_images'
+  img_scale: 224
   subset: 1
 optim_params:
   lr: 0.01

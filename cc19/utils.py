@@ -114,7 +114,7 @@ def data_creator(config):
     data_params = config['data_params']
     batch_size = config[BATCH_SIZE]
     # TODO: check gpus flag
-    return datasets.setup_datasets_np(**data_params, batch_size=batch_size, use_cuda=True)
+    return datasets.setup_data_loaders(**data_params, batch_size=batch_size, use_cuda=True)
 
 
 def optimizer_creator(model, config):

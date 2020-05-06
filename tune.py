@@ -30,6 +30,7 @@ def main(args):
     exp_configs['hparams'] = hparams
 
     exp_configs['data_params']['subset'] = args.subset
+    exp_configs['data_params']['workers'] = args.ds_workers
     max_epochs = 2 if args.smoke else args.max_epochs
     num_samples = 2 if args.smoke else args.num_samples
     exp_configs.update({'num_gpus': 1})
@@ -87,6 +88,7 @@ if __name__ == '__main__':
     PARSER.add_argument('--max-epochs', type=int, default=100)
     PARSER.add_argument('--num-samples', type=int, default=1)
     PARSER.add_argument('--workers', type=int, default=2)
+    PARSER.add_argument('--ds-workers', type=int, default=10)
     PARSER.add_argument('--subset', type=float, default=1.0)
 
     ARGS = PARSER.parse_args()
