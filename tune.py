@@ -2,15 +2,16 @@ import argparse
 import logging
 from os import path as osp
 
-from ax.service.ax_client import AxClient
-
 import ray
-from cc19 import utils
+from ax.service.ax_client import AxClient
 from ray import tune
 from ray.tune import CLIReporter
 from ray.tune.schedulers import AsyncHyperBandScheduler
 from ray.tune.suggest.ax import AxSearch
 from ray.util.sgd.torch import TorchTrainer
+from ray.util.sgd.utils import BATCH_SIZE
+
+from cc19 import utils
 
 
 def main(args):
@@ -57,7 +58,7 @@ def main(args):
                                           scheduler_creator=utils.scheduler_creator,
                                           scheduler_step_freq="epoch",
                                           use_gpu=True,
-                                          config={"batch_size": 512},
+                                          config={BATCH_SIZE: exp_configs['batch_size']},
                                           num_workers=args.workers)
     analysis = tune.run(trainable,
                         num_samples=num_samples,
